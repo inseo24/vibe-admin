@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { APPOINTMENT_STATUS_LABEL, formatDateTimeKST } from '@/lib/utils'
 import type { Appointment } from '@/types/database'
+import CancelButton from './CancelButton'
 
 export default async function MyAppointmentsPage() {
   const supabase = await createClient()
@@ -23,7 +24,7 @@ export default async function MyAppointmentsPage() {
           href="/my/appointments/new"
           className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
         >
-          예약 요청
+          예약하기
         </Link>
       </div>
 
@@ -63,6 +64,11 @@ export default async function MyAppointmentsPage() {
                 <p className="text-sm text-blue-700 mt-2 bg-blue-50 rounded p-2">
                   관리자 안내: {apt.admin_message}
                 </p>
+              )}
+              {(apt.status === 'requested' || apt.status === 'approved') && (
+                <div className="mt-3 pt-3 border-t">
+                  <CancelButton appointmentId={apt.id} />
+                </div>
               )}
             </div>
           ))}

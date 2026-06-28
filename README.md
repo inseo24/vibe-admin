@@ -217,9 +217,13 @@ SELECT * FROM public.appointments WHERE customer_id != auth.uid(); -- 결과 없
 
 ---
 
-## 수동 QA 체크리스트
+## 상세 문서
 
-→ [docs/test-plan.md](docs/test-plan.md) 참고
+역할별 문서는 [`docs/`](docs/README.md) 폴더에 정리되어 있습니다.
+
+- [기획](docs/01-기획.md) · [아키텍처](docs/02-아키텍처.md) · [데이터베이스](docs/03-데이터베이스.md)
+- [보안·개인정보](docs/04-보안-개인정보.md) · [테스트·QA](docs/05-테스트-QA.md) · [운영·배포](docs/06-운영-배포.md)
+- [프롬프트 회고](docs/07-프롬프트-회고.md) — 코드 기준으로 프롬프트를 어떻게 구성했어야 했는지
 
 ---
 

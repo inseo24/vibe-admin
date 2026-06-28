@@ -1,0 +1,9 @@
+<h2>이메일 인증</h2>
+<p>회원가입을 완료하려면 아래 버튼을 눌러 이메일을 인증해 주세요.</p>
+<p>
+  <a href="{{ .SiteURL }}/api/auth/callback?token_hash={{ .TokenHash }}&type=email&next=/"
+     style="display:inline-block;padding:10px 18px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+    이메일 인증하기
+  </a>
+</p>
+<p style="color:#888;font-size:12px;">본인이 요청하지 않았다면 이 메일을 무시하세요. 링크는 일정 시간 후 만료됩니다.</p>

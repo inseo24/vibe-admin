@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { slotsForDate, kstToday, BOOKING_RANGE_DAYS } from '@/lib/booking'
+import { slotsForDate, kstToday, BOOKING_RANGE_DAYS, coveredInstants } from '@/lib/booking'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -26,19 +26,24 @@ export default function ScheduleGrid({ mode, days = 7 }: Props) {
       const map = new Map<number, Status>()
       try {
         if (mode === 'public') {
-          // 공개: 승인된 예약만
+          // 공개: 승인된 예약만 (소요시간만큼 슬롯 확장)
           const res = await fetch('/api/public-schedule')
           if (res.ok) {
-            const items: { scheduled_at: string }[] = await res.json()
-            items.forEach((it) => map.set(new Date(it.scheduled_at).getTime(), 'approved'))
+            const items: { scheduled_at: string; duration: number }[] = await res.json()
+            items.forEach((it) =>
+              coveredInstants(it.scheduled_at, it.duration ?? 30).forEach((t) => map.set(t, 'approved'))
+            )
           }
         } else {
-          // 예약 화면: 예약중 + 승인
+          // 예약 화면: 예약중 + 승인 (소요시간만큼 슬롯 확장)
           const res = await fetch(`/api/availability?from=${today.str}&days=${days}`)
           if (res.ok) {
             const { slots } = await res.json()
-            ;(slots as { at: string; status: Status }[]).forEach((s) =>
-              map.set(new Date(s.at).getTime(), s.status)
+            ;(slots as { at: string; status: Status; duration: number }[]).forEach((s) =>
+              coveredInstants(s.at, s.duration ?? 30).forEach((t) => {
+                // 승인이 예약중을 덮어쓰도록 (같은 칸이면 승인 우선)
+                if (s.status === 'approved' || !map.has(t)) map.set(t, s.status)
+              })
             )
           }
         }

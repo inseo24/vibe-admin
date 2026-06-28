@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { SLOT_MINUTES, isValidSlot } from '@/lib/booking'
+import { SLOT_MINUTES, isValidBooking, intervalsOverlap } from '@/lib/booking'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json()
   const scheduled_at = body.scheduled_at
+  const duration = typeof body.duration === 'number' ? body.duration : SLOT_MINUTES
   const customer_message = typeof body.customer_message === 'string' && body.customer_message.trim()
     ? body.customer_message.trim()
     : null
@@ -32,26 +33,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '예약 시간을 선택해 주세요.' }, { status: 400 })
   }
 
-  // 유효한 영업 슬롯인지 + 과거가 아닌지 검증 (클라이언트 값 신뢰 금지)
-  if (!isValidSlot(scheduled_at)) {
+  // 유효한 예약(연속 슬롯·영업시간·소요시간)인지 검증 (클라이언트 값 신뢰 금지)
+  if (!isValidBooking(scheduled_at, duration)) {
     return NextResponse.json({ error: '예약할 수 없는 시간입니다.' }, { status: 400 })
   }
   if (new Date(scheduled_at).getTime() < Date.now()) {
     return NextResponse.json({ error: '이미 지난 시간은 예약할 수 없습니다.' }, { status: 400 })
   }
 
-  // 중복 예약 방지: 동일 시각에 requested/approved 예약이 있으면 거절
+  // 중복 예약 방지: 같은 날 requested/approved 예약과 시간 구간이 겹치면 거절
   // (다른 고객 정보는 노출하지 않고, 충돌 여부만 service role 로 확인)
   const admin = createAdminClient()
-  const { data: clash } = await admin
+  const newStart = new Date(scheduled_at).getTime()
+  const dateStr = scheduled_at.slice(0, 10)
+  const dayStart = new Date(`${dateStr}T00:00:00+09:00`).toISOString()
+  const dayEnd = new Date(`${dateStr}T23:59:59+09:00`).toISOString()
+  const { data: sameDay } = await admin
     .from('appointments')
-    .select('id')
-    .eq('scheduled_at', scheduled_at)
+    .select('scheduled_at, duration')
     .in('status', ['requested', 'approved'])
-    .limit(1)
+    .gte('scheduled_at', dayStart)
+    .lte('scheduled_at', dayEnd)
 
-  if (clash && clash.length > 0) {
-    return NextResponse.json({ error: '이미 예약된 시간입니다. 다른 시간을 선택해 주세요.' }, { status: 409 })
+  const clash = (sameDay ?? []).some((e) =>
+    intervalsOverlap(newStart, duration, new Date(e.scheduled_at).getTime(), e.duration)
+  )
+  if (clash) {
+    return NextResponse.json({ error: '이미 예약된 시간이 포함되어 있습니다. 다른 시간을 선택해 주세요.' }, { status: 409 })
   }
 
   const { error } = await supabase.from('appointments').insert({
@@ -60,7 +68,7 @@ export async function POST(request: NextRequest) {
     customer_phone: profile.phone ?? null,
     customer_message,
     scheduled_at,
-    duration: SLOT_MINUTES,
+    duration,
     status: 'requested',
   })
 

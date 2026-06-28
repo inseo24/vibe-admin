@@ -1,4 +1,4 @@
-import ScheduleGrid from '@/components/ScheduleGrid'
+import MonthSchedule from '@/components/MonthSchedule'
 
 export default function SchedulePage() {
   return (
@@ -10,7 +10,7 @@ export default function SchedulePage() {
       </p>
 
       <div className="bg-white rounded-xl shadow p-5">
-        <ScheduleGrid mode="public" days={7} />
+        <MonthSchedule />
       </div>
     </main>
   )

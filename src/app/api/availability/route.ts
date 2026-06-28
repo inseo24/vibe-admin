@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('appointments')
-    .select('scheduled_at, status')
+    .select('scheduled_at, status, duration')
     .in('status', ['requested', 'approved'])
     .gte('scheduled_at', rangeStart)
     .lte('scheduled_at', rangeEnd)
@@ -40,6 +40,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '가용성 조회에 실패했습니다.' }, { status: 500 })
   }
 
-  const slots = (data ?? []).map((r) => ({ at: r.scheduled_at, status: r.status }))
+  const slots = (data ?? []).map((r) => ({ at: r.scheduled_at, status: r.status, duration: r.duration }))
   return NextResponse.json({ slots })
 }

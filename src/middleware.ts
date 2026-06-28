@@ -2,6 +2,15 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // 매직링크가 Supabase Site URL(예: 루트 "/")로 떨어지는 경우 대비:
+  // ?code= 가 콜백이 아닌 다른 경로로 오면 콜백 라우트로 넘겨 세션 교환.
+  const code = request.nextUrl.searchParams.get('code')
+  if (code && !request.nextUrl.pathname.startsWith('/api/auth/callback')) {
+    const callbackUrl = new URL('/api/auth/callback', request.url)
+    callbackUrl.searchParams.set('code', code)
+    return NextResponse.redirect(callbackUrl)
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(

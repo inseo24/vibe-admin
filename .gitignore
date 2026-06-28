@@ -40,3 +40,4 @@ next-env.d.ts
 
 # supabase db password (local only)
 .supabase-db-password.txt
+.env*

@@ -4,9 +4,10 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/availability?date=YYYY-MM-DD
-// 해당 날짜에 이미 잡힌(requested/approved) 슬롯의 시작 시각만 반환한다.
-// 고객 개인정보는 절대 포함하지 않는다 (scheduled_at 만).
+// GET /api/availability?date=YYYY-MM-DD            (하루)
+// GET /api/availability?from=YYYY-MM-DD&days=7     (범위)
+// 잡힌(requested/approved) 슬롯의 시작 시각과 상태만 반환한다.
+// 고객 개인정보는 절대 포함하지 않는다 (scheduled_at, status 만).
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,28 +15,31 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
   }
 
-  const date = request.nextUrl.searchParams.get('date')
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  const sp = request.nextUrl.searchParams
+  const date = sp.get('date')
+  const from = sp.get('from') ?? date
+  const days = date ? 1 : Math.min(Math.max(parseInt(sp.get('days') ?? '7', 10) || 7, 1), 31)
+
+  if (!from || !/^\d{4}-\d{2}-\d{2}$/.test(from)) {
     return NextResponse.json({ error: '날짜 형식이 올바르지 않습니다.' }, { status: 400 })
   }
 
-  // 하루 범위 (KST)
-  const dayStart = new Date(`${date}T00:00:00+09:00`).toISOString()
-  const dayEnd = new Date(`${date}T23:59:59+09:00`).toISOString()
+  const dayStart = new Date(`${from}T00:00:00+09:00`)
+  const rangeStart = dayStart.toISOString()
+  const rangeEnd = new Date(dayStart.getTime() + days * 86400000 - 1000).toISOString()
 
-  // service role 로 전체 예약 조회하되, scheduled_at 만 반환 (개인정보 미노출)
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('appointments')
-    .select('scheduled_at')
+    .select('scheduled_at, status')
     .in('status', ['requested', 'approved'])
-    .gte('scheduled_at', dayStart)
-    .lte('scheduled_at', dayEnd)
+    .gte('scheduled_at', rangeStart)
+    .lte('scheduled_at', rangeEnd)
 
   if (error) {
     return NextResponse.json({ error: '가용성 조회에 실패했습니다.' }, { status: 500 })
   }
 
-  const taken = (data ?? []).map((r) => r.scheduled_at)
-  return NextResponse.json({ taken })
+  const slots = (data ?? []).map((r) => ({ at: r.scheduled_at, status: r.status }))
+  return NextResponse.json({ slots })
 }

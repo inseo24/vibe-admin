@@ -11,6 +11,7 @@ import {
   BOOKING_RANGE_DAYS,
   type Slot,
 } from '@/lib/booking'
+import ScheduleGrid from '@/components/ScheduleGrid'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -41,8 +42,8 @@ export default function NewAppointmentPage() {
     try {
       const res = await fetch(`/api/availability?date=${date}`)
       if (res.ok) {
-        const { taken } = await res.json()
-        setTakenSet(new Set((taken as string[]).map((t) => new Date(t).getTime())))
+        const { slots } = await res.json()
+        setTakenSet(new Set((slots as { at: string }[]).map((s) => new Date(s.at).getTime())))
       }
     } finally {
       setLoadingSlots(false)
@@ -135,6 +136,12 @@ export default function NewAppointmentPage() {
       <div className="flex items-center gap-2 mb-6">
         <Link href="/my/appointments" className="text-gray-500 hover:text-gray-700">←</Link>
         <h1 className="text-2xl font-bold">예약하기</h1>
+      </div>
+
+      {/* 주간 예약 현황 (한눈에 보기) */}
+      <div className="bg-white rounded-xl shadow p-5 mb-4">
+        <h2 className="font-semibold mb-3">이번 주 예약 현황</h2>
+        <ScheduleGrid mode="booking" days={7} />
       </div>
 
       <div className="bg-white rounded-xl shadow p-5 mb-4">
